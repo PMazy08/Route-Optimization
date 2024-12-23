@@ -247,7 +247,13 @@ const Home = () => {
         return;
       }
 
-      console.log("User logged in:", user);
+
+      const idToken = await user.getIdToken();
+      console.log("JWT Token 1:", idToken);
+
+      // console.log("User logged in:", user);
+
+
       router.push("/home");
     } catch (error) {
       // console.error("Error logging in:", error.message);
@@ -270,7 +276,10 @@ const Home = () => {
       //   return;
       // }
 
-      console.log("Signed in with Google:", user);
+      // const idToken = await user.getIdToken();
+      // console.log("JWT Token 2:", idToken);
+
+      // console.log("Signed in with Google:", user);
       router.push("/home");
     } catch (error) {
       // console.error("Error signing in with Google:", error.message);
