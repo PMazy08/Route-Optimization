@@ -102,7 +102,7 @@ function Dashboard() {
 
   return (
     <div>
-      <h1>Welcome, {user?.email?.split('@')[0]}</h1>
+      {/* <h1>Welcome, {user?.email?.split('@')[0]}</h1> */}
       <div>
         <Map />
       </div>
@@ -111,6 +111,8 @@ function Dashboard() {
 
       {/* Button to trigger password reset modal */}
       <button onClick={() => setIsResetModalOpen(true)}  style={{backgroundColor: "yellow", marginLeft: "10px"}} >Change Password</button>
+
+
 
       {/* Password Reset Modal */}
       {isResetModalOpen && (

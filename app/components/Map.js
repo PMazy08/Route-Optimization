@@ -635,13 +635,14 @@
 import { useState, useEffect, useRef } from "react";
 import mapboxgl from "mapbox-gl";
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { getAuth, onAuthStateChanged } from "firebase/auth";
-import app from "../../config";
+
+import { drawRoute } from "../services/mapboxService";
+import { fetchMarkers } from "../services/mapboxService";
+import { subscribeAuthState } from "../services/authService";
 
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
 
 const Map = () => {
-  const auth = getAuth(app);
   const [user, setUser] = useState(null);
   const [idToken, setIdToken] = useState(""); // State สำหรับเก็บ token
 
@@ -658,49 +659,24 @@ const Map = () => {
   ];
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        setUser(user);
-        try {
-          // รอให้ getIdToken() คืนค่าและเก็บใน state
-          const token = await user.getIdToken();
-          setIdToken(token); // เก็บ token ใน state
-        } catch (error) {
-          console.error("Error getting ID token:", error);
-        }
-      } else {
-        setUser(null); 
-      }
-    });
-    return () => unsubscribe();
-  }, [auth]);
+    const unsubscribe = subscribeAuthState(setUser, setIdToken); // เรียกใช้ service
+    return () => unsubscribe(); // เมื่อ component ถูกลบออก, ยกเลิกการ subscribe
+  }, []); // ใช้ [] เพื่อให้เพียงแค่ครั้งแรกที่ mount
 
+  
   useEffect(() => {
-    const fetchMarkers = async () => {
+    const fetchAndSetMarkers = async () => {
       try {
         if (idToken) {
-          const response = await fetch('http://192.168.3.233:8080/api/students', {
-            headers: {
-              'Authorization': `Bearer ${idToken}`, // ส่ง token ใน headers
-              'Content-Type': 'application/json',
-            },
-          });
-
-          if (response.ok) {
-            const data = await response.json();
-            setMarkers(data); // เก็บข้อมูลที่ได้จาก API ใน state
-          } else {
-            console.error('Failed to fetch data from API:', response.status);
-          }
+          const data = await fetchMarkers(idToken); // เรียกใช้ service ดึงข้อมูล
+          setMarkers(data); // เก็บข้อมูลที่ได้จาก API ใน state
         }
       } catch (error) {
         console.error("Error fetching marker data: ", error);
       }
     };
-
-    fetchMarkers();
-  }, [idToken]); // ใช้ idToken เป็น dependency เพื่อให้ดึงข้อมูลใหม่เมื่อ token เปลี่ยน
-
+    fetchAndSetMarkers();
+  }, [idToken]);
 
 
   useEffect(() => {
@@ -724,30 +700,109 @@ const Map = () => {
 
   useEffect(() => {
     if (mapRef.current && markers.length > 0) {
-      markers.forEach(({ longitude, latitude }) => {
+      // ลบหมุดเดิมก่อน เพื่อไม่ให้มีหมุดซ้ำ
+      const existingMarkers = document.querySelectorAll('.custom-marker');
+      existingMarkers.forEach((marker) => marker.remove());
+      let currentPopup = null; 
+  
+      markers.forEach(({ latitude, longitude, first_name, last_name, age, gender, address, status }) => {
         const el = document.createElement('div');
-        el.style.width = '10px'; // กำหนดขนาดจุด
+        el.className = 'custom-marker';
+        el.style.width = '10px'; // ขนาดจุด
         el.style.height = '10px';
-        el.style.backgroundColor = '#58d68d'; // สีของจุด
+        // el.style.backgroundColor = '#58d68d'; // สีของจุด
+        el.style.backgroundColor = status === 0 ? '#FFECA1' : '#58d68d'; // เปลี่ยนสีเป็นเทาถ้า status เป็น 0
         el.style.borderRadius = '50%'; // ทำให้เป็นวงกลม
         el.style.boxShadow = '0 0 5px rgba(0, 0, 0, 0.5)'; // เพิ่มเงาเล็กน้อย
-        
+  
         const marker = new mapboxgl.Marker({ element: el })
-          .setLngLat([longitude, latitude])
+          .setLngLat([parseFloat(longitude), parseFloat(latitude)]) // แปลง latitude และ longitude เป็นตัวเลข
           .addTo(mapRef.current);
-
-        marker.getElement().addEventListener('click', () => {
-          mapRef.current.flyTo({
-            center: [longitude, latitude],
-            zoom: 17,
-            speed: 1.5,
-            curve: 1.5,
-            easing(t) { return t; },
-          });
+  
+        // สร้าง Popup
+        const popup = new mapboxgl.Popup({
+          closeButton: false,
+          closeOnClick: false,
+        }).setHTML(
+          `<div>
+            <h3>${first_name} ${last_name}</h3>
+            <p><strong>Age:</strong> ${age}</p>
+            <p><strong>Gender:</strong> ${gender}</p>
+            <p><strong>Address:</strong> ${address}</p>
+          </div>`
+        );
+  
+        // Event แสดง Popup เมื่อ mouseenter
+        el.addEventListener('mouseenter', () => {
+          popup.setLngLat([parseFloat(longitude), parseFloat(latitude)]).addTo(mapRef.current);
         });
+  
+        // Event ซ่อน Popup เมื่อ mouseleave
+        el.addEventListener('mouseleave', () => {
+          popup.remove();
+        });
+
+        
+
+        // // Event แสดง Popup เมื่อ click
+        // el.addEventListener('click', () => {
+        //   if (currentPopup) {
+        //     currentPopup.remove();
+        //   }
+        //   popup.setLngLat([parseFloat(longitude), parseFloat(latitude)]).addTo(mapRef.current);
+        //   currentPopup = popup;
+        // });
+
+  
+        // Event คลิกเพื่อโฟกัสที่หมุด
+        // el.addEventListener('click', () => {
+        //   mapRef.current.flyTo({
+        //     center: [parseFloat(longitude), parseFloat(latitude)],
+        //     zoom: 17,
+        //     speed: 1.5,
+        //     curve: 1.5,
+        //     easing(t) {
+        //       return t;
+        //     },
+        //   });
+        // });
+
       });
     }
   }, [markers, selectedStyle]);
+
+
+  //วาดเองเมื่อเข้าเว็บ
+  // useEffect(() => {
+  //   if (mapRef.current) {
+  //     // ตรวจสอบว่ามีข้อมูลของแผนที่อยู่แล้ว
+  //     const start = { lng: 145.03619883, lat: -37.78029297 }; // จุดเริ่มต้น
+  //     const end = { lng: 145.05715817, lat: -37.77380638 };   // จุดปลายทาง
+  //     drawRoute(mapRef.current, start, end);
+  //   }
+  // }, [mapRef.current]);
+
+
+  const points = [
+    { lng: 145.03619883, lat: -37.78029297 }, // จุดเริ่มต้น
+    { lng: 145.00570028, lat: -37.77455545 }
+  ];
+  const points2 = [
+    { lng: 145.03619883, lat: -37.78029297 }, // จุดเริ่มต้น
+    { lng: 145.02627122, lat: -37.75486496 }
+  ];
+  const points3 = [
+    { lng: 145.03619883, lat: -37.78029297 }, // จุดเริ่มต้น
+    { lng: 145.05951330, lat: -37.77714326 }
+  ];
+  const points4 = [
+    { lng: 145.03619883, lat: -37.78029297 }, // จุดเริ่มต้น
+    { lng: 145.04138367, lat: -37.76253585 }
+  ];
+  const points5 = [
+    { lng: 145.03619883, lat: -37.78029297 }, // จุดเริ่มต้น
+    { lng: 145.03326988, lat: -37.78597188 }
+  ];
 
   return (
     <div>
@@ -762,8 +817,27 @@ const Map = () => {
 
       <div
         ref={mapContainerRef}
-        style={{ height: "800px", width: "100%" }}
+        style={{ height: "700px", width: "100%" }}
       />
+
+    <button
+      onClick={() => {
+        drawRoute(mapRef.current, points, 1);
+        drawRoute(mapRef.current, points2, 2);
+        drawRoute(mapRef.current, points3, 3);
+        drawRoute(mapRef.current, points4, 4);
+        drawRoute(mapRef.current, points5, 5);
+      }}
+      style={{
+        backgroundColor: "green",
+        color: "white",
+        padding: "10px",
+        borderRadius: "5px",
+        margin: "10px",
+      }}
+    >
+      Draw Multi-Point Route
+    </button>
     </div>
   );
 };
