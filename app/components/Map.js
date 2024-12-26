@@ -636,9 +636,9 @@ import { useState, useEffect, useRef } from "react";
 import mapboxgl from "mapbox-gl";
 import 'mapbox-gl/dist/mapbox-gl.css';
 
-import { drawRoute } from "../services/mapboxService";
-import { fetchMarkers } from "../services/mapboxService";
+import { drawRoute, fetchMarkers, resetRoute } from "../services/mapboxService";
 import { subscribeAuthState } from "../services/authService";
+import { points1, points2, points3, points4, points5, points6, points7 } from './points2';
 
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
 
@@ -684,7 +684,7 @@ const Map = () => {
       container: mapContainerRef.current,
       style: selectedStyle,
       center: [145.03619883, -37.78029297],
-      zoom: 12,
+      zoom: 13,
       attributionControl: false,
     });
 
@@ -708,39 +708,50 @@ const Map = () => {
       markers.forEach(({ latitude, longitude, first_name, last_name, age, gender, address, status }) => {
         const el = document.createElement('div');
         el.className = 'custom-marker';
-        el.style.width = '10px'; // ขนาดจุด
-        el.style.height = '10px';
-        // el.style.backgroundColor = '#58d68d'; // สีของจุด
-        el.style.backgroundColor = status === 0 ? '#FFECA1' : '#58d68d'; // เปลี่ยนสีเป็นเทาถ้า status เป็น 0
+        el.style.width = '7px'; // ขนาดจุด
+        el.style.height = '7px';
+        el.style.backgroundColor = '#58d68d'; // สีของจุด
+        // el.style.backgroundColor = status === 0 ? '#FFECA1' : '#58d68d'; // เปลี่ยนสีเป็นเทาถ้า status เป็น 0
         el.style.borderRadius = '50%'; // ทำให้เป็นวงกลม
         el.style.boxShadow = '0 0 5px rgba(0, 0, 0, 0.5)'; // เพิ่มเงาเล็กน้อย
   
         const marker = new mapboxgl.Marker({ element: el })
           .setLngLat([parseFloat(longitude), parseFloat(latitude)]) // แปลง latitude และ longitude เป็นตัวเลข
+          .setPopup(
+            new mapboxgl.Popup({ closeButton: false }).setHTML(
+              `<div">
+                <h3>${first_name} ${last_name}</h3>
+                <p><strong>Age:</strong> ${age}</p>
+                <p><strong>Gender:</strong> ${gender}</p>
+                <p><strong>Address:</strong> ${address}</p>
+              </div>`
+            )
+          )
           .addTo(mapRef.current);
+          
   
         // สร้าง Popup
-        const popup = new mapboxgl.Popup({
-          closeButton: false,
-          closeOnClick: false,
-        }).setHTML(
-          `<div>
-            <h3>${first_name} ${last_name}</h3>
-            <p><strong>Age:</strong> ${age}</p>
-            <p><strong>Gender:</strong> ${gender}</p>
-            <p><strong>Address:</strong> ${address}</p>
-          </div>`
-        );
+        // const popup = new mapboxgl.Popup({
+        //   closeButton: false,
+        //   closeOnClick: false,
+        // }).setHTML(
+        //   `<div>
+        //     <h3>${first_name} ${last_name}</h3>
+        //     <p><strong>Age:</strong> ${age}</p>
+        //     <p><strong>Gender:</strong> ${gender}</p>
+        //     <p><strong>Address:</strong> ${address}</p>
+        //   </div>`
+        // );
   
-        // Event แสดง Popup เมื่อ mouseenter
-        el.addEventListener('mouseenter', () => {
-          popup.setLngLat([parseFloat(longitude), parseFloat(latitude)]).addTo(mapRef.current);
-        });
+        // // Event แสดง Popup เมื่อ mouseenter
+        // el.addEventListener('mouseenter', () => {
+        //   popup.setLngLat([parseFloat(longitude), parseFloat(latitude)]).addTo(mapRef.current);
+        // });
   
-        // Event ซ่อน Popup เมื่อ mouseleave
-        el.addEventListener('mouseleave', () => {
-          popup.remove();
-        });
+        // // Event ซ่อน Popup เมื่อ mouseleave
+        // el.addEventListener('mouseleave', () => {
+        //   popup.remove();
+        // });
 
         
 
@@ -782,28 +793,6 @@ const Map = () => {
   //   }
   // }, [mapRef.current]);
 
-
-  const points = [
-    { lng: 145.03619883, lat: -37.78029297 }, // จุดเริ่มต้น
-    { lng: 145.00570028, lat: -37.77455545 }
-  ];
-  const points2 = [
-    { lng: 145.03619883, lat: -37.78029297 }, // จุดเริ่มต้น
-    { lng: 145.02627122, lat: -37.75486496 }
-  ];
-  const points3 = [
-    { lng: 145.03619883, lat: -37.78029297 }, // จุดเริ่มต้น
-    { lng: 145.05951330, lat: -37.77714326 }
-  ];
-  const points4 = [
-    { lng: 145.03619883, lat: -37.78029297 }, // จุดเริ่มต้น
-    { lng: 145.04138367, lat: -37.76253585 }
-  ];
-  const points5 = [
-    { lng: 145.03619883, lat: -37.78029297 }, // จุดเริ่มต้น
-    { lng: 145.03326988, lat: -37.78597188 }
-  ];
-
   return (
     <div>
       <h1>Choose a Map Style</h1>
@@ -822,11 +811,14 @@ const Map = () => {
 
     <button
       onClick={() => {
-        drawRoute(mapRef.current, points, 1);
-        drawRoute(mapRef.current, points2, 2);
-        drawRoute(mapRef.current, points3, 3);
-        drawRoute(mapRef.current, points4, 4);
-        drawRoute(mapRef.current, points5, 5);
+        drawRoute(mapRef.current, points1, 1, "#BB15EE");
+        drawRoute(mapRef.current, points2, 2, "#01AF97");
+        drawRoute(mapRef.current, points3, 3, "#7306CA");
+
+        drawRoute(mapRef.current, points4, 4, "#0AAAF9");
+        // drawRoute(mapRef.current, points5, 5, "#6B9EAA");
+        // drawRoute(mapRef.current, points4, 6, "#FFA68A");
+        drawRoute(mapRef.current, points5, 7, "#685B9A");
       }}
       style={{
         backgroundColor: "green",
@@ -837,6 +829,19 @@ const Map = () => {
       }}
     >
       Draw Multi-Point Route
+    </button>
+
+    <button
+      onClick={() => resetRoute(mapRef.current)}
+      style={{
+        backgroundColor: "red",
+        color: "white",
+        padding: "10px",
+        borderRadius: "5px",
+        margin: "10px",
+      }}
+    >
+      Reset Route
     </button>
     </div>
   );
